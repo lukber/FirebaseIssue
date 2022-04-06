@@ -2,8 +2,12 @@ package cz.datasys.firebaseissue;
 
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.ArrayAdapter;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -24,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
 	ListView mListView;
 
 	List<Movie> mMovies = new LinkedList<>();
+	private MovieAdapter mAdapter;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -33,19 +38,20 @@ public class MainActivity extends AppCompatActivity {
 		FirebaseFirestore.setLoggingEnabled(true);
 
 		mFirestore = FirebaseFirestore.getInstance();
+
+		mAdapter = new MovieAdapter();
+
 		mListView = findViewById(R.id.list);
+		mListView.setAdapter(mAdapter);
 		mListView.setOnItemClickListener((adapterView, view, index, l) -> {
-			Movie movie = mMovies.get(index);
-			movie.likes += 1;
-			mFirestore.collection("movies")
-					.document(movie.id)
-					.update("likes", movie.likes);
+
 		});
 
 		findViewById(R.id.add).setOnClickListener(view -> {
 			Map<String, Object> user = new HashMap<>();
 			user.put("name", "Star wars (episode " + mMovies.size() + ")");
 			user.put("likes", 0);
+			user.put("stars", 0);
 
 			// Add a new document with a generated ID
 
@@ -72,8 +78,7 @@ public class MainActivity extends AppCompatActivity {
 						movie.setId(snapshot.getId());
 						mMovies.add(movie);
 					}
-					ArrayAdapter arrayAdapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, android.R.id.text1, mMovies);
-					mListView.setAdapter(arrayAdapter);
+					mAdapter.notifyDataSetChanged();
 				});
 	}
 
@@ -82,13 +87,15 @@ public class MainActivity extends AppCompatActivity {
 		private String id;
 		private String name;
 		private int likes;
+		private int stars;
 
 		public Movie() {
 		}
 
-		public Movie(String name, int likes) {
+		public Movie(String name, int likes, int stars) {
 			this.name = name;
 			this.likes = likes;
+			this.stars = stars;
 		}
 
 		public String getId() {
@@ -115,13 +122,65 @@ public class MainActivity extends AppCompatActivity {
 			this.likes = likes;
 		}
 
+		public int getStars() {
+			return stars;
+		}
+
+		public void setStars(int stars) {
+			this.stars = stars;
+		}
+
 		@Override
 		public String toString() {
 			return "Movie{" +
 					"id='" + id + '\'' +
 					", name='" + name + '\'' +
 					", likes=" + likes +
+					", stars=" + stars +
 					'}';
+		}
+	}
+
+	class MovieAdapter extends BaseAdapter {
+
+		@Override
+		public int getCount() {
+			return mMovies.size();
+		}
+
+		@Override
+		public Object getItem(int i) {
+			return mMovies.get(i);
+		}
+
+		@Override
+		public long getItemId(int i) {
+			return 0;
+		}
+
+		@Override
+		public View getView(int i, View view, ViewGroup viewGroup) {
+			if (view == null) {
+				view = LayoutInflater.from(MainActivity.this).inflate(R.layout.item_movie, viewGroup, false);
+			}
+
+			final Movie movie = (Movie) getItem(i);
+			((TextView) view.findViewById(R.id.text)).setText(movie.toString());
+
+			view.findViewById(R.id.likes).setOnClickListener(view1 -> {
+				//increment likes
+				mFirestore.collection("movies")
+						.document(movie.id)
+						.update("likes", movie.likes + 1);
+			});
+			view.findViewById(R.id.stars).setOnClickListener(view1 -> {
+				//increment stars
+				mFirestore.collection("movies")
+						.document(movie.id)
+						.update("stars", movie.stars + 1);
+			});
+
+			return view;
 		}
 	}
 }
